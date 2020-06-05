@@ -2,83 +2,48 @@ const express = require("express");
 const bodyParser = require("body-parser");
 const bcrypt = require("bcrypt-nodejs");
 const cors = require("cors");
+const knex = require("knex");
+
+const register = require("./controllers/register.js");
+const signin = require("./controllers/signin.js");
+const profile = require("./controllers/profile.js");
+const image = require("./controllers/image.js");
 
 const app = express();
 
 app.use(bodyParser.json());
 app.use(cors());
 
-const db = {
-  users: [
-    {
-      id: "1",
-      name: "Alice",
-      email: "alice@gmail.com",
-      password: "alice",
-      entries: 0,
-      joined: new Date(),
-    },
-    {
-      id: "2",
-      name: "Bob",
-      email: "bob@gmail.com",
-      password: "bob",
-      entries: 0,
-      joined: new Date(),
-    },
-  ],
-};
+const db = knex({
+  client: "pg",
+  connection: {
+    host: "127.0.0.1",
+    user: "postgres",
+    password: "postgres",
+    database: "smart-brain",
+  },
+});
 
 app.get("/", (req, res) => {
   res.json(db.users);
 });
 
-app.post("/signin", (req, res) => {
-  if (
-    req.body.email === db.users[0].email &&
-    req.body.password === db.users[0].password
-  ) {
-    res.json(db.users[0]);
-  } else {
-    res.status(400).json("fail");
-  }
-});
+app.post("/signin", signin.handleSignIn(db, bcrypt)); // different way but same result
 
 app.post("/register", (req, res) => {
-  const { name, email, password } = req.body;
-  db.users.push({
-    id: "3",
-    name: name,
-    email: email,
-    password: password,
-    entries: 0,
-    joined: new Date(),
-  });
-  res.json(db.users[db.users.length - 1]);
+  register.handleRegister(req, res, db, bcrypt);
 });
 
 app.get("/profile/:id", (req, res) => {
-  const { id } = req.params;
-  let found = false;
-  db.users.map((user) => {
-    if (user.id === id) {
-      found = true;
-      return res.json(user);
-    }
-  });
-  if (!found) res.status(404).json("no such user");
+  profile.handleProfile(req, res, db);
 });
 
 app.put("/image", (req, res) => {
-  const { id } = req.body;
-  let found = false;
-  db.users.map((user) => {
-    if (user.id === id) {
-      found = true;
-      user.entries++;
-      return res.json(user.entries);
-    }
-  });
+  image.handleImage(req, res, db);
+});
+
+app.post("/imageurl", (req, res) => {
+  image.handleApiCall(req, res);
 });
 
 app.listen(3000, () => {
